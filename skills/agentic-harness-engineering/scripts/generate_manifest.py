@@ -112,7 +112,7 @@ def _detect_component(path: Path) -> str:
         return "skills"
     if spath.startswith("sub_agents/"):
         return "sub_agents"
-    if spath.startswith("MEMORY.md") or spath.startswith("experiences.md"):
+    if spath in ("MEMORY.md", "experiences.md", "LongTermMEMORY.md"):
         return "long_term_memory"
     return None
 
