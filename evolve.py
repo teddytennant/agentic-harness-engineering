@@ -442,9 +442,18 @@ def _build_harbor_cmd(config: dict, workspace_dir: Path, agent_config_filename: 
     k = int(harbor_cfg.get("k", 1))
     n_concurrent = n_concurrent_override or harbor_cfg["n_concurrent"]
 
+    # Select the agent by registered name, or by import path for custom adapters
+    # (e.g. the wizard adapter) that aren't in harbor's AgentName enum.
+    import_path = harbor_cfg.get("agent_import_path")
+    agent_selector = (
+        ["--agent-import-path", import_path]
+        if import_path
+        else ["--agent", harbor_cfg["agent"]]
+    )
+
     cmd = [
         "harbor", "run",
-        "--agent", harbor_cfg["agent"],
+        *agent_selector,
         "--env", harbor_cfg["env"],
         "--model", model,
         "--n-concurrent", str(n_concurrent),

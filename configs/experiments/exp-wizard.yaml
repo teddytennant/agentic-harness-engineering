@@ -1,0 +1,57 @@
+_base: "../base.yaml"
+_name: "wizard"
+_description: "Evolve wizard's externalized system prompt against a local task set, served by llama-server on the GPU host. Transcript-fed (no NexAU-format Agent Debugger)."
+_tags: ["wizard", "docker", "local-gpu"]
+
+# Local task set authored from wizard's real failure modes (harbor task format).
+path: "./dataset/wizard"
+
+max_iterations: 5
+target_pass_rate: 0.9
+
+# Local llama-server (OpenAI-compatible) on the GPU host. Set these in .env:
+#   LLM_BASE_URL=http://localhost:8080/v1   (evolve-agent, runs on the host)
+#   LLM_API_KEY=sk-noauth-local             (any non-empty string)
+# The in-container wizard reaches the same server via host.docker.internal:8080
+# (set WIZARD_LLM_BASE_URL for the adapter; see docs/WIZARD-AHE.md).
+llm:
+  api_key: "${LLM_API_KEY}"
+  base_url: "${LLM_BASE_URL}"
+  model: "qwen3.6-27b"
+
+harbor:
+  # Custom adapter selected by import path (not in harbor's AgentName enum).
+  # Requires the evolve.py `--agent-import-path` support added on this branch.
+  agent: "wizard"
+  agent_import_path: "agents.wizard_agent.adapter:WizardAgent"
+  env: "docker"
+  k: 2
+  n_concurrent: 6
+  force_build: false
+
+# The harness AHE evolves: a directory whose system_prompt.md is wizard's base
+# prompt. AHE copies it into experiments/<run>/workspace/ and the evolve agent
+# rewrites it each iteration; the adapter ships the current candidate into each
+# task container as ~/.wizard/system_prompt.md.
+source_config_dir: "agents/wizard_harness"
+agent_config_filename: "system_prompt.md"
+
+# NOTE: base.yaml's code_agent_patch does a YAML deep-merge into
+# agent_config_filename — that fits NexAU's code_agent.yaml but NOT a markdown
+# system_prompt.md. Neutralized here; evolve.py may still need a guard to skip
+# the merge when the agent config isn't YAML (see docs/WIZARD-AHE.md, Open items).
+code_agent_patch: {}
+
+evolve_agent:               # same model as the base (user choice); local llama-server
+  llm_config:
+    api_type: openai_chat_completion   # llama-server speaks chat/completions, not the Responses API
+    tool_call_mode: openai
+
+agent_debugger:
+  enabled: false            # transcript-fed; do not emulate NexAU traces
+
+explore_agent:
+  enabled: false            # optional; enable later to seed skills from wizard's repo/docs
+
+notify:
+  enabled: false

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Install template for the wizard agent (rendered + run inside the task container
+# by BaseInstalledAgent.setup). The wizard binary and the evolved system_prompt
+# are uploaded by WizardAgent.setup() *before* this runs, so this script only
+# finalizes permissions and verifies the install.
+set -euo pipefail
+
+chmod +x /usr/local/bin/wizard
+
+# Sanity: the binary runs in this container and reports its version.
+/usr/local/bin/wizard --version
+
+echo "wizard installed: $(command -v wizard)"

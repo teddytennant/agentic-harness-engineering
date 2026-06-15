@@ -1,0 +1,22 @@
+version = "1.0"
+
+[metadata]
+name = "even-sum"
+description = "Worked-example coding task for the wizard evolve loop: implement a small function from a spec."
+
+[verifier]
+timeout_sec = 120.0
+
+[agent]
+# Agentic coding needs more headroom than the trivial smoke task.
+timeout_sec = 600.0
+
+[environment]
+build_timeout_sec = 300.0
+cpus = 1
+memory_mb = 2048
+storage_mb = 4096
+# REQUIRED for wizard tasks: the in-container agent must reach the LLM served on
+# the host (host.docker.internal:8080). With this false, all egress is blocked
+# and wizard cannot call the model.
+allow_internet = true
