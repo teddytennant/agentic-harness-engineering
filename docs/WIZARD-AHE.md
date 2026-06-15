@@ -63,6 +63,45 @@ containers with `--add-host=host.docker.internal:host-gateway` (or `--network
 host`, then set `WIZARD_LLM_BASE_URL=http://localhost:8080/v1`). llama-server
 binds `0.0.0.0` already.
 
+## Option B: Grok via your xAI OAuth subscription (no API key)
+
+wizard's `wizard --login xai` stores a Bearer token (`~/.wizard/xai_oauth.json`)
+used against the OpenAI-compatible API at `https://api.x.ai/v1` (model `grok-4.3`).
+`scripts/xai-oauth-proxy.py` reuses that session as a local OpenAI-compatible
+endpoint — auto-refreshing the token — so **both** the evolve-agent and the
+in-container wizard use Grok with no API key, on one port. The adapter needs no
+change. This works on any box (no GPU needed; Grok is remote), so you can skip
+`serve-qwen.sh` entirely.
+
+```bash
+# 0. one-time: sign in (interactive browser flow)
+wizard --login xai
+
+# 1. start the proxy (0.0.0.0 so containers can reach it; stays running)
+cd agentic-harness-engineering
+python3 scripts/xai-oauth-proxy.py          # -> http://0.0.0.0:8080/v1
+curl -s http://localhost:8080/v1/models      # confirm Grok responds
+
+# 2. point AHE + the adapter at the proxy
+#   .env:   LLM_BASE_URL=http://localhost:8080/v1   LLM_API_KEY=unused
+export WIZARD_LLM_BASE_URL=http://host.docker.internal:8080/v1   # for task containers
+export WIZARD_BINARY=/abs/path/to/wizard/target/release/wizard
+
+# 3. run (grok-4.3, n_concurrent=3 to respect subscription rate limits)
+uv run python evolve.py --config configs/experiments/exp-wizard-xai.yaml
+```
+
+Caveats: OAuth API access is gated to certain SuperGrok plans (403 if yours lacks
+it — fall back to `XAI_API_KEY` + `kind="xai"`); it's your personal subscription,
+so keep `n_concurrent` low and be mindful that automated loop use differs from
+interactive use; binding the proxy on `0.0.0.0` exposes a token-injecting endpoint
+on your LAN (use `HOST=127.0.0.1` if only the host-side evolve-agent needs it, but
+then containers can't reach it — use `--network host` for those instead).
+
+For a smoke gate on this path, run the same command with
+`path: ./dataset/local-sample`, `max_iterations: 1`, `k: 1` (copy
+`exp-wizard-xai.yaml` and override those three).
+
 ## Open items (need a live gate run to finalize)
 
 These could not be validated off-GPU and are the most likely things to need a

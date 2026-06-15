@@ -1,0 +1,44 @@
+_base: "../base.yaml"
+_name: "wizard-xai"
+_description: "wizard evolve loop backed by Grok via your xAI OAuth subscription, through scripts/xai-oauth-proxy.py. No API key. Both the evolve-agent and the in-container wizard go through the proxy."
+_tags: ["wizard", "docker", "xai", "grok"]
+
+path: "./dataset/wizard"
+
+max_iterations: 5
+target_pass_rate: 0.9
+
+# Point at the local OAuth proxy (scripts/xai-oauth-proxy.py). In .env set:
+#   LLM_BASE_URL=http://localhost:8080/v1
+#   LLM_API_KEY=unused           (proxy injects the real bearer; any value works)
+llm:
+  api_key: "${LLM_API_KEY}"
+  base_url: "${LLM_BASE_URL}"
+  model: "grok-4.3"
+
+harbor:
+  agent: "wizard"
+  agent_import_path: "agents.wizard_agent.adapter:WizardAgent"
+  env: "docker"
+  k: 2
+  # Subscription/OAuth API access is rate-limited — keep concurrency modest.
+  n_concurrent: 3
+  force_build: false
+
+source_config_dir: "agents/wizard_harness"
+agent_config_filename: "system_prompt.md"
+code_agent_patch: {}
+
+evolve_agent:
+  llm_config:
+    api_type: openai_chat_completion
+    tool_call_mode: openai
+
+agent_debugger:
+  enabled: false
+
+explore_agent:
+  enabled: false
+
+notify:
+  enabled: false
