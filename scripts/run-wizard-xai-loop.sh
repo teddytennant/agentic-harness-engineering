@@ -61,18 +61,27 @@ if ! curl -sf "http://127.0.0.1:$PROXY_PORT/v1/models" >/dev/null 2>&1; then
 fi
 echo "[run] proxy live on :$PROXY_PORT"
 
+# Unify the LLM address on the docker bridge gateway so it's reachable from BOTH
+# the host (evolve-agent) and the task container (wizard), AND so harbor — which
+# whitelists the host parsed from LLM_BASE_URL when it restricts container egress
+# via iptables — whitelists the same address wizard actually calls. harbor runs
+# allow_internet tasks with network_mode=bridge (no host.docker.internal), so the
+# gateway is the reachable host address from inside the container.
+DOCKER_GW="$(docker network inspect bridge -f '{{range .IPAM.Config}}{{.Gateway}}{{end}}' 2>/dev/null)"
+[ -n "$DOCKER_GW" ] || DOCKER_GW="172.17.0.1"
+LLM_URL="http://$DOCKER_GW:$PROXY_PORT/v1"
+
 # --- wire AHE (.env is loaded with override=True, so set it there) ---
 touch .env
-# Replace or append the two LLM_ keys without clobbering other .env entries.
+# Replace or append the LLM_ keys without clobbering other .env entries.
 grep -vE '^(LLM_BASE_URL|LLM_API_KEY|LLM_MODEL)=' .env > .env.tmp 2>/dev/null || true
 {
-  echo "LLM_BASE_URL=http://127.0.0.1:$PROXY_PORT/v1"
+  echo "LLM_BASE_URL=$LLM_URL"
   echo "LLM_API_KEY=oauth-via-proxy"
   echo "LLM_MODEL=$MODEL"
 } >> .env.tmp
 mv .env.tmp .env
-# The in-container wizard reaches the proxy on the host gateway.
-export WIZARD_LLM_BASE_URL="http://host.docker.internal:$PROXY_PORT/v1"
+export WIZARD_LLM_BASE_URL="$LLM_URL"
 
 # harbor imports the adapter by path (agents.wizard_agent.adapter); put the AHE
 # project root on PYTHONPATH so that import resolves in the harbor subprocess.

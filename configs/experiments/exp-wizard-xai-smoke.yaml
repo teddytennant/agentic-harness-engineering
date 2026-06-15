@@ -3,7 +3,7 @@ _name: "wizard-xai-smoke"
 _description: "Cheap wiring gate for the xAI-OAuth path: trivial hello-file task, one rollout, one iteration, through the xai-oauth-proxy. Proves wizard runs in-container, reaches Grok via the proxy, and harbor scores it."
 _tags: ["wizard", "docker", "xai", "smoke-test"]
 
-path: "./dataset/local-sample"
+path: "./dataset/wizard-smoke"
 
 max_iterations: 1
 target_pass_rate: 0.5
