@@ -54,6 +54,42 @@ for k in _ENV_KEYS:
         print(f"  {k}=(not set)")
 
 
+def validate_env_for_config(config: dict) -> None:
+    """Validate required environment variables for the configured execution mode.
+
+    The LLM keys are always required — the agent cannot run without an LLM.
+    E2B / GitHub credentials are only relevant in the cloud-sandbox ("e2b")
+    execution mode; when ``harbor.env`` is "docker" the loop runs entirely on
+    the local Docker daemon and needs neither. This keeps a fully-local run from
+    hard-failing on a missing E2B account.
+    """
+    env_mode = config.get("harbor", {}).get("env", "docker")
+
+    # LLM keys are mandatory in every mode.
+    missing_llm = [k for k in ("LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL")
+                   if not os.environ.get(k)]
+    if missing_llm:
+        print(f"[env] ERROR: missing required LLM environment variables: "
+              f"{', '.join(missing_llm)}")
+        print("[env]        the code agent needs a reachable LLM "
+              "(set LLM_API_KEY / LLM_BASE_URL / LLM_MODEL in .env)")
+        sys.exit(1)
+
+    if env_mode == "e2b":
+        # Cloud-sandbox mode genuinely needs an E2B account.
+        if not os.environ.get("E2B_API_KEY"):
+            print("[env] ERROR: harbor.env == 'e2b' but E2B_API_KEY is not set")
+            print("[env]        set E2B_API_KEY in .env, or switch harbor.env to "
+                  "'docker' for fully-local execution")
+            sys.exit(1)
+        if not os.environ.get("GITHUB_TOKEN"):
+            print("[env] WARNING: GITHUB_TOKEN not set — some nexau install "
+                  "steps may be rate-limited")
+    else:
+        print(f"[env] harbor.env == '{env_mode}': running locally, "
+              "E2B / GitHub credentials not required")
+
+
 # ---------------------------------------------------------------------------
 # Feishu Webhook Notification
 # ---------------------------------------------------------------------------
@@ -4145,6 +4181,7 @@ def _run_harbor_with_explore_agent(
 def run_single_experiment(config: dict, config_path: str, experiment_name: str | None = None,
                           start_iteration: int = 1, skip_eval: bool = False) -> None:
     """Run the full evolution loop for a single experiment."""
+    validate_env_for_config(config)
     source_dir = resolve_source_dir(config)
     agent_config_filename = config["agent_config_filename"]
     target_pass_rate = config["target_pass_rate"]

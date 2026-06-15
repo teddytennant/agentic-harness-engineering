@@ -1,0 +1,28 @@
+_base: "../base.yaml"
+_name: "local-sample"
+_description: "Fully-local smoke test: local Docker execution, no E2B cloud sandbox, single trivial task."
+_tags: ["local", "docker", "smoke-test"]
+
+# Local dataset directory (relative to the AHE repo root). Contains one trivial
+# task (hello-file) that a local Docker build + verifier can run in seconds.
+path: "./dataset/local-sample"
+
+# One pass is enough to prove the loop runs end-to-end locally.
+max_iterations: 1
+target_pass_rate: 0.5
+
+harbor:
+  env: "docker"        # local Docker daemon, no cloud sandbox
+  k: 1                 # one rollout per task
+  n_concurrent: 1
+  force_build: false
+
+# Keep the loop lean for a smoke test: no explore-agent, no debugger, no notify.
+explore_agent:
+  enabled: false
+
+agent_debugger:
+  enabled: false
+
+notify:
+  enabled: false

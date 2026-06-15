@@ -24,7 +24,7 @@ llm:
 
 harbor:
   agent: "nexau"
-  env: "e2b"
+  env: "docker"                         # 本地 Docker 执行（无需 E2B 云沙箱）；改回 "e2b" 可走云端
   k: 2                                  # 每个 task 的 rollout 次数
   n_concurrent: 64
   force_build: false
