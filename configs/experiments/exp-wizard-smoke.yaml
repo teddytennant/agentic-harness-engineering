@@ -1,0 +1,41 @@
+_base: "../base.yaml"
+_name: "wizard-smoke"
+_description: "Minimal wiring gate for the wizard evolve loop: the trivial hello-file task, one rollout, one iteration. Proves wizard runs in-container, reaches the host LLM, and harbor scores it — before the real run."
+_tags: ["wizard", "docker", "smoke-test"]
+
+# Trivial built-in task (creates /app/solution.txt = "hello").
+path: "./dataset/local-sample"
+
+max_iterations: 1
+target_pass_rate: 0.5
+
+llm:
+  api_key: "${LLM_API_KEY}"
+  base_url: "${LLM_BASE_URL}"
+  model: "qwen3.6-27b"
+
+harbor:
+  agent: "wizard"
+  agent_import_path: "agents.wizard_agent.adapter:WizardAgent"
+  env: "docker"
+  k: 1
+  n_concurrent: 1
+  force_build: false
+
+source_config_dir: "agents/wizard_harness"
+agent_config_filename: "system_prompt.md"
+code_agent_patch: {}
+
+evolve_agent:
+  llm_config:
+    api_type: openai_chat_completion
+    tool_call_mode: openai
+
+agent_debugger:
+  enabled: false
+
+explore_agent:
+  enabled: false
+
+notify:
+  enabled: false
