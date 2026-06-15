@@ -43,9 +43,9 @@ agent_config_filename: "system_prompt.md"
 code_agent_patch: {}
 
 evolve_agent:               # same model as the base (user choice); local llama-server
+  tool_call_mode: openai     # top-level (matches evolve_agent.yaml), NOT under llm_config
   llm_config:
     api_type: openai_chat_completion   # llama-server speaks chat/completions, not the Responses API
-    tool_call_mode: openai
 
 agent_debugger:
   enabled: false            # transcript-fed; do not emulate NexAU traces

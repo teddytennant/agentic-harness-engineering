@@ -24,6 +24,7 @@ cd "$PROJECT_ROOT"
 
 CONFIG="${CONFIG:-configs/experiments/exp-wizard-xai.yaml}"
 ROUNDS="${ROUNDS:-1}"
+MODEL="${MODEL:-grok-4.3}"
 RUNDIR="$PROJECT_ROOT/.wizard-xai-runs"
 mkdir -p "$RUNDIR"
 
@@ -63,14 +64,36 @@ echo "[run] proxy live on :$PROXY_PORT"
 # --- wire AHE (.env is loaded with override=True, so set it there) ---
 touch .env
 # Replace or append the two LLM_ keys without clobbering other .env entries.
-grep -vE '^(LLM_BASE_URL|LLM_API_KEY)=' .env > .env.tmp 2>/dev/null || true
+grep -vE '^(LLM_BASE_URL|LLM_API_KEY|LLM_MODEL)=' .env > .env.tmp 2>/dev/null || true
 {
   echo "LLM_BASE_URL=http://127.0.0.1:$PROXY_PORT/v1"
   echo "LLM_API_KEY=oauth-via-proxy"
+  echo "LLM_MODEL=$MODEL"
 } >> .env.tmp
 mv .env.tmp .env
 # The in-container wizard reaches the proxy on the host gateway.
 export WIZARD_LLM_BASE_URL="http://host.docker.internal:$PROXY_PORT/v1"
+
+# harbor imports the adapter by path (agents.wizard_agent.adapter); put the AHE
+# project root on PYTHONPATH so that import resolves in the harbor subprocess.
+export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+
+# evolve.py spawns the `harbor` CLI as a subprocess; make sure the venv bin is on
+# PATH so it resolves even when uv doesn't propagate it to the child env.
+if [ -d "$PROJECT_ROOT/.venv/bin" ]; then
+  export PATH="$PROJECT_ROOT/.venv/bin:$PATH"
+fi
+
+# NixOS: harbor's native deps (litellm -> tokenizers) need libstdc++.so.6 on the
+# loader path, which isn't there by default. Point LD_LIBRARY_PATH at a gcc lib.
+if ! echo "${LD_LIBRARY_PATH:-}" | grep -q 'gcc.*-lib'; then
+  for d in /nix/store/*-gcc-*-lib/lib; do
+    if [ -e "$d/libstdc++.so.6" ]; then
+      export LD_LIBRARY_PATH="$d${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      break
+    fi
+  done
+fi
 
 echo "[run] CONFIG=$CONFIG ROUNDS=$ROUNDS WIZARD_BINARY=$WIZARD_BINARY"
 echo "[run] WIZARD_LLM_BASE_URL=$WIZARD_LLM_BASE_URL"

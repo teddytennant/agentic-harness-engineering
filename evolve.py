@@ -226,7 +226,20 @@ def apply_agent_yaml_patch(yaml_path: Path, patch: dict, label: str = "patch") -
 
 
 def apply_code_agent_patch(workspace_dir: Path, agent_config_filename: str, patch: dict) -> None:
-    """Apply code_agent_patch to the agent config in workspace."""
+    """Apply code_agent_patch to the agent config in workspace.
+
+    The patch is a YAML deep-merge, so it only applies when the agent config is
+    YAML. Adapters whose evolve target is a free-form file (e.g. the wizard
+    adapter's markdown system_prompt.md) must not be YAML-merged — doing so
+    parses and rewrites the prompt as YAML and corrupts it. Skip them.
+    """
+    if not agent_config_filename.lower().endswith((".yaml", ".yml")):
+        if patch:
+            print(
+                f"[code_agent_patch] skipped: {agent_config_filename} is not a YAML "
+                "agent config (free-form evolve target)"
+            )
+        return
     apply_agent_yaml_patch(workspace_dir / agent_config_filename, patch, label="code_agent_patch")
 
 
@@ -451,8 +464,15 @@ def _build_harbor_cmd(config: dict, workspace_dir: Path, agent_config_filename: 
         else ["--agent", harbor_cfg["agent"]]
     )
 
+    # Resolve the harbor CLI next to the running interpreter and invoke it THROUGH
+    # that interpreter, so it works regardless of PATH propagation under `uv run`
+    # and even if the venv console-script shebang is stale (e.g. the project dir
+    # was relocated after the venv was created).
+    harbor_script = Path(sys.executable).parent / "harbor"
+    harbor_argv = [sys.executable, str(harbor_script)] if harbor_script.exists() else ["harbor"]
+
     cmd = [
-        "harbor", "run",
+        *harbor_argv, "run",
         *agent_selector,
         "--env", harbor_cfg["env"],
         "--model", model,

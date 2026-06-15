@@ -26,9 +26,9 @@ agent_config_filename: "system_prompt.md"
 code_agent_patch: {}
 
 evolve_agent:
+  tool_call_mode: openai
   llm_config:
     api_type: openai_chat_completion
-    tool_call_mode: openai
 
 agent_debugger:
   enabled: false
