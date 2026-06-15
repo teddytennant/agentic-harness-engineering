@@ -1,0 +1,40 @@
+_base: "../base.yaml"
+_name: "wizard-xai-smoke"
+_description: "Cheap wiring gate for the xAI-OAuth path: trivial hello-file task, one rollout, one iteration, through the xai-oauth-proxy. Proves wizard runs in-container, reaches Grok via the proxy, and harbor scores it."
+_tags: ["wizard", "docker", "xai", "smoke-test"]
+
+path: "./dataset/local-sample"
+
+max_iterations: 1
+target_pass_rate: 0.5
+
+llm:
+  api_key: "${LLM_API_KEY}"
+  base_url: "${LLM_BASE_URL}"
+  model: "grok-4.3"
+
+harbor:
+  agent: "wizard"
+  agent_import_path: "agents.wizard_agent.adapter:WizardAgent"
+  env: "docker"
+  k: 1
+  n_concurrent: 1
+  force_build: false
+
+source_config_dir: "agents/wizard_harness"
+agent_config_filename: "system_prompt.md"
+code_agent_patch: {}
+
+evolve_agent:
+  llm_config:
+    api_type: openai_chat_completion
+    tool_call_mode: openai
+
+agent_debugger:
+  enabled: false
+
+explore_agent:
+  enabled: false
+
+notify:
+  enabled: false
